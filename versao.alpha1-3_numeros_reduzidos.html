@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Estilingue Matemático</title>
+    <style>
+        /* --- ESTILOS GERAIS E TRANSIÇÕES DE MODO --- */
+        body { 
+            text-align: center; font-family: Arial, sans-serif; margin: 0; padding: 20px;
+            background-color: #e0f2f1; color: #333; transition: background-color 0.5s, color 0.5s;
+        }
+        body.modo-dificil { background-color: #263238; color: #eceff1; }
+
+        .layout-principal { display: flex; justify-content: center; align-items: flex-start; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .area-jogo { display: flex; flex-direction: column; align-items: center; }
+        .container-jogo { position: relative; display: inline-block; margin-top: 10px; }
+        
+        canvas { 
+            background-color: #f5f5f5; border: 4px solid #333; border-radius: 10px; cursor: crosshair;
+            transition: background-color 0.5s, border-color 0.5s; box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+        }
+        body.modo-dificil canvas { background-color: #eceff1; border-color: #b71c1c; box-shadow: 0px 8px 20px rgba(255,82,82,0.3); }
+        
+        /* PLACAR E PAINEL */
+        .placar, .painel {
+            background-color: #fff; padding: 10px 20px; border-radius: 8px; border: 2px solid #ccc;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1); transition: all 0.5s;
+        }
+        .placar { display: flex; justify-content: space-between; width: 800px; margin: 0 auto 10px auto; font-size: 22px; font-weight: bold; }
+        .painel { margin-top: 15px; font-size: 18px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        body.modo-dificil .placar, body.modo-dificil .painel { background-color: #37474f; border-color: #546e7a; color: #fff; }
+        
+        .destaque-pontos { color: #ff5722; font-size: 26px; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        .texto-fase { color: #2196F3; }
+        body.modo-dificil .texto-fase { color: #81d4fa; }
+        .texto-modo { color: #d32f2f; font-size: 16px; margin-left: 10px; display: none; }
+        body.modo-dificil .texto-modo { color: #ff5252; }
+        
+        .input-grupo { background: #f9f9f9; padding: 5px 10px; border-radius: 5px; border: 1px solid #ccc; }
+        body.modo-dificil .input-grupo { background: #455a64; border-color: #607d8b; }
+        
+        input[type="number"] { width: 70px; font-size: 16px; border: none; outline: none; text-align: center; background: transparent; color: inherit; font-weight: bold;}
+        input:disabled { color: #9e9e9e; cursor: not-allowed; }
+        
+        button.btn-acao { font-size: 16px; padding: 8px 18px; cursor: pointer; background-color: #ff5722; color: white; border: none; border-radius: 5px; font-weight: bold; margin-left: 10px; box-shadow: 0 4px 0 #d84315; transition: transform 0.1s, box-shadow 0.1s;}
+        button.btn-acao:active { transform: translateY(4px); box-shadow: 0 0 0 #d84315; }
+        button.btn-acao:disabled { background-color: #aaa; box-shadow: 0 4px 0 #888; cursor: not-allowed; }
+        #btn-reiniciar { background-color: #4CAF50; box-shadow: 0 4px 0 #388E3C; display: none; }
+
+        /* MENSAGENS E TOOLTIP */
+        #mensagem {
+            display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            padding: 20px 40px; background-color: rgba(0, 0, 0, 0.9); color: white;
+            border-radius: 10px; font-size: 22px; font-weight: bold; box-shadow: 0px 8px 20px rgba(0,0,0,0.6); text-align: center; line-height: 1.4;
+        }
+        .msg-acerto { border: 4px solid #4CAF50; color: #81C784 !important; }
+        .msg-erro { border: 4px solid #f44336; color: #E57373 !important; }
+        .msg-fim { border: 4px solid #FFEB3B; color: #FFF59D !important; }
+
+        #tooltip {
+            display: none; position: absolute; background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid #333; padding: 10px 15px; border-radius: 8px; font-size: 16px;
+            text-align: center; pointer-events: none; z-index: 10; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); color: #333;
+        }
+        .form-dica { color: #0056b3; font-weight: bold; margin-top: 5px; display: block; font-size: 18px;}
+        .obstaculo-dica { color: #d32f2f; }
+
+        /* PAINEL LATERAL E CALCULADORA */
+        .painel-lateral { display: flex; flex-direction: column; align-items: center; margin-top: 60px; min-width: 220px; gap: 15px; }
+        .controle-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .placa-calc {
+            background-color: #fff; border: 2px solid #ccc; padding: 5px 12px; border-radius: 5px;
+            font-weight: bold; color: #333; font-size: 16px; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); width: 130px; text-align: left; transition: 0.5s;
+        }
+        body.modo-dificil .placa-calc { background-color: #37474f; border-color: #546e7a; color: #fff; }
+
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 26px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .slider.verde { background-color: #4CAF50; }
+        input:checked + .slider.vermelho { background-color: #f44336; }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        .calculadora { background-color: #333; padding: 15px; border-radius: 10px; width: 100%; box-sizing: border-box; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px; }
+        .calc-visor { background-color: #e0f2f1; padding: 10px; border-radius: 5px; font-size: 20px; text-align: right; min-height: 25px; border: inset 2px #ccc; word-wrap: break-word; font-family: monospace; color: #333;}
+        .calc-botoes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .calc-btn { background-color: #555; color: white; border: none; padding: 15px 0; font-size: 18px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.2s; box-shadow: 0 3px 0 #222;}
+        .calc-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #222; }
+        .calc-btn:hover { background-color: #777; }
+        .calc-btn.op { background-color: #ff9800; box-shadow: 0 3px 0 #e65100;}
+        .calc-btn.op:hover { background-color: #fb8c00; }
+        .calc-btn.clear { background-color: #f44336; grid-column: span 2; box-shadow: 0 3px 0 #b71c1c;}
+        .calc-btn.igual { background-color: #4CAF50; grid-column: span 2; box-shadow: 0 3px 0 #1b5e20;}
+    </style>
+</head>
+<body>
+    <h1>🎯 Estilingue Matemático</h1>
+    
+    <div class="layout-principal">
+        <div class="area-jogo">
+            <div class="placar">
+                <div class="texto-fase">Fase: <span id="txt-fase">1</span> <span id="txt-modo-dificil" class="texto-modo">(Modo Difícil x2)</span></div>
+                <div>Jogadas: <span id="txt-jogadas">3</span>/3</div>
+                <div>Pontos: <span id="txt-pontos" class="destaque-pontos">0</span></div>
+            </div>
+
+            <div class="container-jogo">
+                <canvas id="telaDoJogo" width="800" height="400"></canvas>
+                <div id="mensagem"></div>
+            </div>
+            <div id="tooltip"></div>
+
+            <div class="painel">
+                <strong>y = </strong>
+                <div class="input-grupo"><input type="number" id="valorA" value="-0.05" step="0.01"> <strong>x²</strong></div>
+                <strong>+</strong>
+                <div class="input-grupo"><input type="number" id="valorB" value="2.5" step="0.1"> <strong>x</strong></div>
+                <strong>+</strong>
+                <div class="input-grupo"><input type="number" id="valorC" value="0" step="1" disabled></div>
+                
+                <button id="btn-lancar" class="btn-acao" onclick="iniciarLancamento()">LANÇAR!</button>
+                <button id="btn-reiniciar" class="btn-acao" onclick="reiniciarJogo()">JOGAR NOVAMENTE</button>
+            </div>
+        </div>
+
+        <div class="painel-lateral">
+            <div class="controle-toggle">
+                <div class="placa-calc" style="color: #ff5252;">🔥 Difícil</div>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-dificil" onchange="alternarModoDificil()">
+                    <span class="slider vermelho"></span>
+                </label>
+            </div>
+
+            <div class="controle-toggle">
+                <div class="placa-calc" style="color: #4CAF50;">🧮 Calculadora</div>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-calc" checked onchange="alternarCalculadora()">
+                    <span class="slider verde"></span>
+                </label>
+            </div>
+
+            <div class="calculadora" id="calc-box">
+                <div class="calc-visor" id="calc-visor">0</div>
+                <div class="calc-botoes">
+                    <button class="calc-btn" onclick="addCalc('7')">7</button>
+                    <button class="calc-btn" onclick="addCalc('8')">8</button>
+                    <button class="calc-btn" onclick="addCalc('9')">9</button>
+                    <button class="calc-btn op" onclick="addCalc('/')">÷</button>
+                    <button class="calc-btn" onclick="addCalc('4')">4</button>
+                    <button class="calc-btn" onclick="addCalc('5')">5</button>
+                    <button class="calc-btn" onclick="addCalc('6')">6</button>
+                    <button class="calc-btn op" onclick="addCalc('*')">×</button>
+                    <button class="calc-btn" onclick="addCalc('1')">1</button>
+                    <button class="calc-btn" onclick="addCalc('2')">2</button>
+                    <button class="calc-btn" onclick="addCalc('3')">3</button>
+                    <button class="calc-btn op" onclick="addCalc('-')">-</button>
+                    <button class="calc-btn" onclick="addCalc('0')">0</button>
+                    <button class="calc-btn" onclick="addCalc('.')">.</button>
+                    <button class="calc-btn" onclick="addCalc('-')">±</button>
+                    <button class="calc-btn op" onclick="addCalc('+')">+</button>
+                    <button class="calc-btn clear" onclick="limparCalc()">C</button>
+                    <button class="calc-btn igual" onclick="calcularTotal()">=</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTE DE ESCALA MATEMÁTICA ---
+        // Todos os valores visuais (em pixels) serão divididos por este número para a matemática
+        const ESCALA = 10;
+
+        // --- FUNÇÕES DA CALCULADORA ---
+        function alternarCalculadora() {
+            document.getElementById('calc-box').style.display = document.getElementById('toggle-calc').checked ? 'flex' : 'none';
+        }
+
+        let visorCalc = document.getElementById('calc-visor');
+        let expressaoCalc = "";
+        function addCalc(valor) {
+            if (expressaoCalc === "" && valor !== "-" && valor !== ".") visorCalc.innerText = "";
+            expressaoCalc += valor; visorCalc.innerText = expressaoCalc;
+        }
+        function limparCalc() { expressaoCalc = ""; visorCalc.innerText = "0"; }
+        function calcularTotal() {
+            try {
+                let resultado = eval(expressaoCalc);
+                resultado = Math.round(resultado * 1000000) / 1000000;
+                visorCalc.innerText = resultado; expressaoCalc = resultado.toString();
+            } catch (e) { visorCalc.innerText = "Erro"; expressaoCalc = ""; }
+        }
+
+        // --- VARIÁVEIS PRINCIPAIS DO JOGO ---
+        const canvas = document.getElementById('telaDoJogo');
+        const ctx = canvas.getContext('2d');
+        const caixaMensagem = document.getElementById('mensagem');
+        const tooltip = document.getElementById('tooltip');
+        const txtPontos = document.getElementById('txt-pontos');
+        const txtJogadas = document.getElementById('txt-jogadas');
+        const txtFase = document.getElementById('txt-fase');
+        const btnLancar = document.getElementById('btn-lancar');
+        const btnReiniciar = document.getElementById('btn-reiniciar');
+        
+        const inputA = document.getElementById('valorA');
+        const inputB = document.getElementById('valorB');
+        const inputC = document.getElementById('valorC');
+        
+        const inicioX = 50;
+        let inicioY = 350; 
+
+        let pontosTotais = 0;
+        let jogadasRestantes = 3;
+        let faseAtual = 1;
+        let tipoFaseAtual = 'normal';
+        let modoDificil = false;
+        
+        let alvos = [];
+        let obstaculo = null; 
+        let alvosAtingidosNesteTiro = []; 
+        
+        let animando = false;
+        let progressoX = 0;
+        let valA = 0, valB = 0, valC = 0;
+        let pontosTrajetoria = []; 
+        let ultimaPosicaoBolinha = null;
+        let particulas = [];
+
+        const estilosAlvo = [
+            { tipo: 'caixote', pontos: 10, tamanho: 40 }, 
+            { tipo: 'cofrinho', pontos: 30, tamanho: 35 }, 
+            { tipo: 'cofre', pontos: 50, tamanho: 30 }  
+        ];
+
+        // --- FUNÇÕES DE DESENHO DE OBJETOS ---
+        function desenharCaixote(x, y, t) {
+            ctx.fillStyle = '#8D6E63'; ctx.fillRect(x, y, t, t);
+            ctx.strokeStyle = '#4E342E'; ctx.lineWidth = 2; ctx.strokeRect(x, y, t, t);
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+t, y+t); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x+t, y); ctx.lineTo(x, y+t); ctx.stroke();
+            ctx.strokeRect(x+4, y+4, t-8, t-8);
+        }
+
+        function desenharCofrinho(x, y, t) {
+            ctx.fillStyle = '#F48FB1'; 
+            ctx.beginPath(); ctx.ellipse(x + t/2, y + t/2, t/2, t/2.5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#C2185B'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#F06292';
+            ctx.beginPath(); ctx.arc(x + t*0.8, y + t/2, t*0.15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x+t*0.3, y+t*0.1); ctx.lineTo(x+t*0.5, y-t*0.1); ctx.lineTo(x+t*0.6, y+t*0.15); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(x + t*0.6, y + t*0.3, 2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#FFCA28'; ctx.fillRect(x + t/2 - 6, y + 2, 12, 4);
+        }
+
+        function desenharCofreForte(x, y, t) {
+            ctx.fillStyle = '#78909C'; ctx.fillRect(x, y, t, t);
+            ctx.strokeStyle = '#37474F'; ctx.lineWidth = 3; ctx.strokeRect(x, y, t, t);
+            ctx.fillStyle = '#CFD8DC'; ctx.beginPath(); ctx.arc(x + t/2, y + t/2, t*0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(x + t/2, y + t/2, t*0.08, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#CFD8DC';
+            ctx.fillRect(x+3, y+3, 3, 3); ctx.fillRect(x+t-6, y+3, 3, 3);
+            ctx.fillRect(x+3, y+t-6, 3, 3); ctx.fillRect(x+t-6, y+t-6, 3, 3);
+        }
+
+        function desenharMuroDeTijolos(x, y, w, h) {
+            ctx.fillStyle = '#D32F2F'; ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = '#FFCDD2'; ctx.lineWidth = 1;
+            for(let i = y; i <= y+h; i+=12) { ctx.beginPath(); ctx.moveTo(x, i); ctx.lineTo(x+w, i); ctx.stroke(); }
+            for(let i = y; i < y+h; i+=12) {
+                let offset = (i % 24 === 0) ? 0 : 10;
+                for(let j = x + offset; j < x+w; j+=20) { ctx.beginPath(); ctx.moveTo(j, i); ctx.lineTo(j, i+12); ctx.stroke(); }
+            }
+            ctx.strokeStyle = '#B71C1C'; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+        }
+
+        // --- SISTEMA DE FASES ---
+        function alternarModoDificil() {
+            modoDificil = document.getElementById('toggle-dificil').checked;
+            document.getElementById('txt-modo-dificil').style.display = modoDificil ? 'inline' : 'none';
+            document.body.className = modoDificil ? 'modo-dificil' : '';
+            reiniciarJogo(); 
+        }
+
+        function carregarFase() {
+            txtFase.innerText = faseAtual;
+            jogadasRestantes = 3; txtJogadas.innerText = jogadasRestantes;
+            alvos = []; obstaculo = null; particulas = [];
+            resetarLancamentoVisual();
+            
+            tipoFaseAtual = (faseAtual === 1) ? 'normal' : (Math.random() > 0.5 ? 'normal' : 'invertida');
+            let qtdAlvos = Math.floor(Math.random() * 3) + 1;
+            
+            // Agora o 'C' gera valores de 0 a 7
+            if (tipoFaseAtual === 'normal') {
+                inicioY = 350;
+                inputC.value = Math.floor(Math.random() * 8); 
+                inputA.value = "-0.05"; inputB.value = "2.5";
+            } else {
+                inicioY = 50; 
+                inputC.value = 0; 
+                inputA.value = "0.05"; inputB.value = "-2.5";  
+            }
+
+            if (modoDificil) {
+                // Sorteia e alinha o muro na malha usando a ESCALA (múltiplos de 10)
+                let randMuroX = Math.floor(Math.random() * 250) + 150; 
+                let posicaoXMuro = Math.round(randMuroX / ESCALA) * ESCALA;
+                let isFlutuante = Math.random() > 0.5; 
+                let alturaMuro, yPos;
+
+                if (tipoFaseAtual === 'normal') {
+                    if (isFlutuante) { 
+                        alturaMuro = Math.round((Math.floor(Math.random() * 60) + 40) / ESCALA) * ESCALA; 
+                        yPos = Math.round((Math.floor(Math.random() * 120) + 80) / ESCALA) * ESCALA;      
+                    } 
+                    else { 
+                        alturaMuro = Math.round((Math.floor(Math.random() * 150) + 100) / ESCALA) * ESCALA; 
+                        yPos = 350 - alturaMuro; 
+                    }
+                } else { 
+                    if (isFlutuante) { 
+                        alturaMuro = Math.round((Math.floor(Math.random() * 60) + 40) / ESCALA) * ESCALA; 
+                        yPos = Math.round((Math.floor(Math.random() * 120) + 150) / ESCALA) * ESCALA; 
+                    } 
+                    else { 
+                        alturaMuro = Math.round((Math.floor(Math.random() * 150) + 100) / ESCALA) * ESCALA; 
+                        yPos = 50; 
+                    }
+                }
+                obstaculo = { x: inicioX + posicaoXMuro, y: yPos, largura: 30, altura: alturaMuro, ativo: true };
+            }
+
+            let xMinAlvo = modoDificil ? (obstaculo.x + obstaculo.largura + 60) : 250;
+
+            for(let i = 0; i < qtdAlvos; i++) {
+                let estilo = estilosAlvo[i % estilosAlvo.length]; 
+                let novoX, novoY, sobreposto = true, tentativas = 0;
+
+                while (sobreposto && tentativas < 50) {
+                    // Sorteia e arredonda os alvos para a malha (múltiplos de 10)
+                    let randX = Math.floor(Math.random() * (750 - xMinAlvo)) + xMinAlvo;
+                    let randY = tipoFaseAtual === 'normal' ? Math.floor(Math.random() * 180) + 80 : Math.floor(Math.random() * 150) + 150;
+                    
+                    novoX = Math.round(randX / ESCALA) * ESCALA;
+                    novoY = Math.round(randY / ESCALA) * ESCALA;
+                    
+                    sobreposto = false;
+                    for (let j = 0; j < alvos.length; j++) {
+                        let aExt = alvos[j]; let margem = 15; 
+                        if (novoX < aExt.x + aExt.largura + margem && novoX + estilo.tamanho + margem > aExt.x &&
+                            novoY < aExt.y + aExt.altura + margem && novoY + estilo.tamanho + margem > aExt.y) {
+                            sobreposto = true; break; 
+                        }
+                    }
+                    tentativas++;
+                }
+                alvos.push({ 
+                    x: novoX, y: novoY, largura: estilo.tamanho, altura: estilo.tamanho, 
+                    tipo: estilo.tipo, pontos: estilo.pontos, ativo: true,
+                    destruindo: false, opacidade: 1.0 
+                });
+            }
+        }
+
+        // --- SISTEMA DE PARTÍCULAS ---
+        function gerarParticulas(alvo) {
+            let cores;
+            if(alvo.tipo === 'caixote') cores = ['#8D6E63', '#4E342E', '#A1887F'];
+            else if(alvo.tipo === 'cofrinho') cores = ['#F48FB1', '#C2185B', '#FFCA28'];
+            else cores = ['#78909C', '#37474F', '#CFD8DC'];
+
+            for(let i=0; i<30; i++) {
+                particulas.push({
+                    x: alvo.x + Math.random() * alvo.largura,
+                    y: alvo.y + Math.random() * alvo.altura,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10 - 2, 
+                    tamanho: Math.random() * 6 + 2,
+                    cor: cores[Math.floor(Math.random() * cores.length)],
+                    vida: 1.0,
+                    decaimento: 0.01 + Math.random() * 0.03
+                });
+            }
+        }
+
+        // --- GAME LOOP PRINCIPAL ---
+        function loopPrincipal() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = modoDificil ? '#546e7a' : '#cfd8dc'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+            for (let x = inicioX; x <= canvas.width; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 400); ctx.stroke(); }
+            for (let y = 0; y <= canvas.height; y += 50) { ctx.beginPath(); ctx.moveTo(inicioX, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+            ctx.setLineDash([]);
+            
+            ctx.strokeStyle = modoDificil ? '#eceff1' : '#333'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(inicioX, 0); ctx.lineTo(inicioX, canvas.height); 
+            ctx.moveTo(inicioX, inicioY); ctx.lineTo(canvas.width, inicioY); ctx.stroke();
+            
+            ctx.fillStyle = modoDificil ? '#3E2723' : '#795548'; 
+            
+            let valorC = parseFloat(inputC.value) || 0;
+            let pixelC = valorC * ESCALA; // Transforma o valor unitário do C de volta em pixels para desenhar
+            
+            if (tipoFaseAtual === 'normal') {
+                ctx.fillRect(0, 350, canvas.width, 50);
+                if (pixelC > 0) { ctx.fillStyle = '#607D8B'; ctx.fillRect(inicioX - 6, 350 - pixelC, 12, pixelC); }
+            } else {
+                ctx.fillRect(0, 0, canvas.width, 50);
+            }
+            if (obstaculo && obstaculo.ativo) desenharMuroDeTijolos(obstaculo.x, obstaculo.y, obstaculo.largura, obstaculo.altura);
+
+            for (let i = 0; i < alvos.length; i++) {
+                let alvo = alvos[i];
+                if (alvo.ativo) {
+                    if(alvo.tipo === 'caixote') desenharCaixote(alvo.x, alvo.y, alvo.largura);
+                    else if(alvo.tipo === 'cofrinho') desenharCofrinho(alvo.x, alvo.y, alvo.largura);
+                    else if(alvo.tipo === 'cofre') desenharCofreForte(alvo.x, alvo.y, alvo.largura);
+                } else if (alvo.destruindo) {
+                    ctx.globalAlpha = alvo.opacidade;
+                    if(alvo.tipo === 'caixote') desenharCaixote(alvo.x, alvo.y, alvo.largura);
+                    else if(alvo.tipo === 'cofrinho') desenharCofrinho(alvo.x, alvo.y, alvo.largura);
+                    else if(alvo.tipo === 'cofre') desenharCofreForte(alvo.x, alvo.y, alvo.largura);
+                    
+                    ctx.fillStyle = `rgba(0, 0, 0, ${1 - alvo.opacidade})`;
+                    ctx.fillRect(alvo.x, alvo.y, alvo.largura, alvo.altura);
+                    ctx.globalAlpha = 1.0;
+                    
+                    alvo.opacidade -= 0.04;
+                    if (alvo.opacidade <= 0) alvo.destruindo = false;
+                }
+            }
+
+            for (let i = particulas.length - 1; i >= 0; i--) {
+                let p = particulas[i];
+                ctx.globalAlpha = p.vida;
+                ctx.fillStyle = p.cor;
+                ctx.fillRect(p.x, p.y, p.tamanho, p.tamanho);
+                ctx.globalAlpha = 1.0;
+                p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.vida -= p.decaimento;
+                if (p.vida <= 0) particulas.splice(i, 1);
+            }
+
+            if (animando) {
+                // Matemática da Escala: Divide a posição X na tela para calcular na fórmula
+                let math_x = progressoX / ESCALA;
+                let math_y = (valA * math_x * math_x) + (valB * math_x) + valC;
+                
+                // Mapeia de volta pra tela (multiplica por 10)
+                let x = inicioX + progressoX; 
+                let y = inicioY - (math_y * ESCALA);
+
+                pontosTrajetoria.push({x: x, y: y});
+                
+                if (pontosTrajetoria.length > 1) {
+                    ctx.beginPath(); ctx.moveTo(inicioX, inicioY - pixelC);
+                    ctx.strokeStyle = modoDificil ? '#FF5252' : '#FF9800'; ctx.lineWidth = 4;
+                    ctx.shadowBlur = 10; ctx.shadowColor = '#FFEB3B';
+                    for (let i = 1; i < pontosTrajetoria.length; i++) ctx.lineTo(pontosTrajetoria[i].x, pontosTrajetoria[i].y);
+                    ctx.stroke(); ctx.shadowBlur = 0;
+                }
+
+                desenharBolinhaGlow(x, y, true);
+                verificarColisoes(x, y);
+                progressoX += 6; 
+            } else {
+                if (pontosTrajetoria.length > 0 && ultimaPosicaoBolinha) {
+                    ctx.beginPath(); ctx.moveTo(inicioX, inicioY - pixelC);
+                    ctx.strokeStyle = modoDificil ? '#FF5252' : '#FF9800'; ctx.lineWidth = 4;
+                    for (let i = 1; i < pontosTrajetoria.length; i++) ctx.lineTo(pontosTrajetoria[i].x, pontosTrajetoria[i].y);
+                    ctx.stroke();
+                    desenharBolinhaGlow(ultimaPosicaoBolinha.x, ultimaPosicaoBolinha.y, false);
+                } else {
+                    let yInicial = tipoFaseAtual === 'normal' ? inicioY - pixelC : inicioY;
+                    desenharBolinhaGlow(inicioX, yInicial, false);
+                }
+            }
+
+            requestAnimationFrame(loopPrincipal);
+        }
+
+        function desenharBolinhaGlow(x, y, comGlow) {
+            if(comGlow) {
+                ctx.shadowBlur = 20; ctx.shadowColor = '#FF9800';
+                ctx.strokeStyle = '#FFF59D'; ctx.lineWidth = 2;
+                for(let i=0; i<6; i++) {
+                    ctx.beginPath(); ctx.moveTo(x, y);
+                    let ang = Math.random() * Math.PI * 2; let r = 10 + Math.random() * 15;
+                    ctx.lineTo(x + Math.cos(ang)*r, y + Math.sin(ang)*r); ctx.stroke();
+                }
+            }
+            ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); 
+            ctx.fillStyle = comGlow ? '#FFEB3B' : '#333'; ctx.fill();
+            ctx.shadowBlur = 0; 
+        }
+
+        // TOOLTIPS COM MATEMÁTICA EM ESCALA
+        canvas.addEventListener('mousemove', function(evento) {
+            if (animando) { tooltip.style.display = 'none'; return; }
+            let rect = canvas.getBoundingClientRect();
+            let mouseX = evento.clientX - rect.left; let mouseY = evento.clientY - rect.top;
+            let achouAlgo = false;
+
+            if (obstaculo && obstaculo.ativo && mouseX >= obstaculo.x && mouseX <= (obstaculo.x + obstaculo.largura) && mouseY >= obstaculo.y && mouseY <= (obstaculo.y + obstaculo.altura)) {
+                achouAlgo = true;
+                // Exibe as coordenadas divididas pela ESCALA
+                let coordX = Math.round((obstaculo.x + (obstaculo.largura / 2) - inicioX) / ESCALA);
+                let coordY_topo = Math.round((tipoFaseAtual === 'normal' ? inicioY - obstaculo.y : inicioY - (obstaculo.y + obstaculo.altura)) / ESCALA);
+                let coordY_base = Math.round((tipoFaseAtual === 'normal' ? inicioY - (obstaculo.y + obstaculo.altura) : inicioY - obstaculo.y) / ESCALA);
+                tooltip.style.left = (evento.pageX + 15) + 'px'; tooltip.style.top = (evento.pageY + 15) + 'px'; tooltip.style.display = 'block';
+                tooltip.innerHTML = `<span class="obstaculo-dica">🚧 Muro de Tijolos</span><br><span class="form-dica">X: ${coordX}<br>Y entre ${coordY_base} e ${coordY_topo}</span>`;
+            }
+
+            for (let i = 0; i < alvos.length; i++) {
+                let alvo = alvos[i];
+                if (alvo.ativo && mouseX >= alvo.x && mouseX <= (alvo.x + alvo.largura) && mouseY >= alvo.y && mouseY <= (alvo.y + alvo.altura)) {
+                    achouAlgo = true;
+                    // Exibe as coordenadas divididas pela ESCALA
+                    let coordX = Math.round((alvo.x + (alvo.largura / 2) - inicioX) / ESCALA);
+                    let coordY = Math.round((inicioY - (alvo.y + (alvo.altura / 2))) / ESCALA); 
+                    
+                    let nomeAlvo = alvo.tipo === 'caixote' ? 'Caixote' : (alvo.tipo === 'cofrinho' ? 'Cofrinho' : 'Cofre Forte');
+                    tooltip.style.left = (evento.pageX + 15) + 'px'; tooltip.style.top = (evento.pageY + 15) + 'px'; tooltip.style.display = 'block';
+                    tooltip.innerHTML = `🎯 ${nomeAlvo} <strong>(${alvo.pontos} pts)</strong><br><span class="form-dica">X: ${coordX} | Y: ${coordY}</span>`;
+                    break;
+                }
+            }
+            if (!achouAlgo) { tooltip.style.display = 'none'; }
+        });
+
+        function resetarLancamentoVisual() {
+            pontosTrajetoria = [];
+            ultimaPosicaoBolinha = null;
+            btnLancar.disabled = false;
+        }
+
+        function iniciarLancamento() {
+            if (animando || jogadasRestantes <= 0) return; 
+            jogadasRestantes--; txtJogadas.innerText = jogadasRestantes;
+            caixaMensagem.style.display = 'none'; tooltip.style.display = 'none'; btnLancar.disabled = true; 
+            valA = parseFloat(inputA.value) || 0; valB = parseFloat(inputB.value) || 0; valC = parseFloat(inputC.value) || 0;
+            progressoX = 0; pontosTrajetoria = []; alvosAtingidosNesteTiro = []; ultimaPosicaoBolinha = null;
+            animando = true;
+        }
+
+        function verificarColisoes(x, y) {
+            let bateuNaParede = false;
+            if (obstaculo && obstaculo.ativo) {
+                if (x >= obstaculo.x && x <= (obstaculo.x + obstaculo.largura) && y >= obstaculo.y && y <= (obstaculo.y + obstaculo.altura)) {
+                    bateuNaParede = true;
+                }
+            }
+
+            for (let i = 0; i < alvos.length; i++) {
+                let alvo = alvos[i];
+                if (alvo.ativo && x >= alvo.x && x <= (alvo.x + alvo.largura) && y >= alvo.y && y <= (alvo.y + alvo.altura)) {
+                    alvo.ativo = false; 
+                    alvo.destruindo = true;
+                    gerarParticulas(alvo);
+                    alvosAtingidosNesteTiro.push(alvo); 
+                }
+            }
+
+            let tocouLimite = false;
+            if (tipoFaseAtual === 'normal' && y > 350 && progressoX > 5) tocouLimite = true; 
+            if (tipoFaseAtual === 'invertida' && y < 50 && progressoX > 5) tocouLimite = true; 
+            if (x > canvas.width || y > canvas.height + 100 || y < -3000) tocouLimite = true; 
+
+            if (tocouLimite || bateuNaParede) {
+                animando = false;
+                ultimaPosicaoBolinha = {x: x, y: y};
+                processarFimDoTiro();
+            }
+        }
+
+        function processarFimDoTiro() {
+            caixaMensagem.style.display = 'block';
+            if (alvosAtingidosNesteTiro.length > 0) {
+                let somaBase = alvosAtingidosNesteTiro.reduce((soma, alvo) => soma + alvo.pontos, 0);
+                let multiplicadorCombo = alvosAtingidosNesteTiro.length;
+                let multiplicadorModo = modoDificil ? 2 : 1;
+                
+                let pontosGanhos = somaBase * multiplicadorCombo * multiplicadorModo;
+                pontosTotais += pontosGanhos; txtPontos.innerText = pontosTotais;
+                
+                let textoExtra = "";
+                if (multiplicadorCombo > 1) textoExtra += `<br>🔥 COMBO DE DESTRUIÇÃO ${multiplicadorCombo}x!`;
+                if (modoDificil) textoExtra += `<br>🌟 Modo Difícil (x2)`;
+
+                caixaMensagem.innerHTML = `🎯 BOA!${textoExtra}<br>+${pontosGanhos} Pontos!`;
+                caixaMensagem.className = "msg-acerto";
+                
+                let faseConcluida = alvos.every(a => !a.ativo && !a.destruindo); 
+                
+                if (faseConcluida) {
+                    setTimeout(() => {
+                        caixaMensagem.innerHTML = `🏆 TELA LIMPA!`;
+                        setTimeout(() => { caixaMensagem.style.display = 'none'; faseAtual++; carregarFase(); }, 1500);
+                    }, 1500);
+                } else {
+                    setTimeout(() => {
+                        if (jogadasRestantes <= 0) finalizarJogo();
+                        else { resetarLancamentoVisual(); caixaMensagem.style.display = 'none'; }
+                    }, 2000); 
+                }
+            } else {
+                caixaMensagem.innerHTML = "❌ Errou a mira!";
+                caixaMensagem.className = "msg-erro";
+                setTimeout(() => {
+                    if (jogadasRestantes <= 0) finalizarJogo(); 
+                    else { resetarLancamentoVisual(); caixaMensagem.style.display = 'none'; }
+                }, 1500); 
+            }
+        }
+
+        function finalizarJogo() {
+            caixaMensagem.style.display = 'block';
+            caixaMensagem.innerHTML = `💀 FIM DE JOGO!<br>Você sobreviveu até a Fase ${faseAtual}<br>e fez ${pontosTotais} pontos.`;
+            caixaMensagem.className = "msg-fim";
+            btnLancar.style.display = 'none'; btnReiniciar.style.display = 'inline-block';
+        }
+
+        function reiniciarJogo() {
+            pontosTotais = 0; faseAtual = 1; txtPontos.innerText = pontosTotais;
+            btnLancar.style.display = 'inline-block'; btnReiniciar.style.display = 'none';
+            caixaMensagem.style.display = 'none'; carregarFase(); 
+        }
+
+        carregarFase();
+        requestAnimationFrame(loopPrincipal);
+
+    </script>
+</body>
+</html>
