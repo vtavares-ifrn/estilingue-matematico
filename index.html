@@ -92,9 +92,85 @@
         .calc-btn.op:hover { background-color: #fb8c00; }
         .calc-btn.clear { background-color: #f44336; grid-column: span 2; box-shadow: 0 3px 0 #b71c1c;}
         .calc-btn.igual { background-color: #4CAF50; grid-column: span 2; box-shadow: 0 3px 0 #1b5e20;}
+
+        /* --- ESTILOS DO TUTORIAL E MODAL --- */
+        #btn-tutorial {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #1565C0;
+            transition: transform 0.1s, box-shadow 0.1s;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #btn-tutorial:active { transform: translateY(4px); box-shadow: 0 0 0 #1565C0; }
+        body.modo-dificil #btn-tutorial { background-color: #0277bd; box-shadow: 0 4px 0 #01579b; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            position: relative;
+            max-width: 90%;
+            box-shadow: 0px 8px 30px rgba(0,0,0,0.5);
+            transition: background-color 0.5s, color 0.5s;
+        }
+        body.modo-dificil .modal-content { background-color: #37474f; color: #eceff1; }
+
+        .btn-fechar-modal {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px 0 #b71c1c;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-fechar-modal:active { transform: translateY(4px); box-shadow: 0 0 0 #b71c1c; }
     </style>
 </head>
 <body>
+
+    <!-- BOTÃO TUTORIAL FLUTUANTE -->
+    <button id="btn-tutorial" onclick="abrirTutorial()">▶ TUTORIAL</button>
+
+    <!-- MODAL DO VÍDEO -->
+    <div id="modal-tutorial" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Como Jogar 🎯</h2>
+            <video id="video-tutorial" width="600" controls style="border-radius: 8px; max-width: 100%; border: 3px solid #ccc;">
+                <source src="tutorial.mp4" type="video/mp4">
+                Seu navegador não suporta a exibição deste vídeo.
+            </video>
+            <br>
+            <button class="btn-fechar-modal" onclick="fecharTutorial()">Minimizar Vídeo</button>
+        </div>
+    </div>
+
     <h1>🎯 Estilingue Matemático</h1>
     
     <div class="layout-principal">
@@ -168,6 +244,20 @@
     </div>
 
     <script>
+        // --- FUNÇÕES DO MODAL DE TUTORIAL ---
+        function abrirTutorial() {
+            document.getElementById('modal-tutorial').style.display = 'flex';
+        }
+
+        function fecharTutorial() {
+            document.getElementById('modal-tutorial').style.display = 'none';
+            // Pausa o vídeo automaticamente quando o aluno fecha a janela
+            let video = document.getElementById('video-tutorial');
+            if (video) {
+                video.pause();
+            }
+        }
+
         // --- CONSTANTE DE ESCALA MATEMÁTICA ---
         // Todos os valores visuais (em pixels) serão divididos por este número para a matemática
         const ESCALA = 10;
